@@ -52,18 +52,26 @@ export const ROMSelector: React.FC<ROMSelectorProps> = ({
     }
   };
 
-  const handleROMSelection = async (option: SingleDropdownOption) => {
+  const handleROMSelection = (option: SingleDropdownOption) => {
     const romInfo = option.data as ROMInfo;
     setSelectedROM(romInfo);
+    console.log(`ROM selected in dropdown: ${romInfo.name}`);
+  };
+
+  const handleLoadSelectedROM = async () => {
+    if (!selectedROM) {
+      onError?.("No ROM selected");
+      return;
+    }
     
     setIsLoadingROM(true);
     try {
-      console.log(`Loading ROM: ${romInfo.name}`);
-      const romData = await service.loadROM(romInfo.fullPath);
-      console.log(`ROM loaded: ${romInfo.name} (${romData.length} bytes)`);
-      onROMSelected(romData, romInfo.name);
+      console.log(`Loading selected ROM: ${selectedROM.name}`);
+      const romData = await service.loadROM(selectedROM.fullPath);
+      console.log(`ROM loaded: ${selectedROM.name} (${romData.length} bytes)`);
+      onROMSelected(romData, selectedROM.name);
     } catch (error) {
-      console.error("Failed to load ROM:", error);
+      console.error("Failed to load selected ROM:", error);
       onError?.(error instanceof Error ? error.message : "Failed to load ROM");
     } finally {
       setIsLoadingROM(false);
@@ -113,6 +121,19 @@ export const ROMSelector: React.FC<ROMSelectorProps> = ({
           </div>
         )}
       </PanelSectionRow>
+      
+      {selectedROM && (
+        <PanelSectionRow>
+          <ButtonItem 
+            layout="below" 
+            onClick={handleLoadSelectedROM}
+            disabled={isLoadingROM}
+          >
+            {isLoadingROM ? "Loading ROM..." : "Load ROM"}
+          </ButtonItem>
+        </PanelSectionRow>
+      )}
+      
       <PanelSectionRow>
         <ButtonItem 
           layout="below" 
