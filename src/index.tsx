@@ -17,6 +17,7 @@ import { EmulatorControls } from "./components/EmulatorControls";
 
 // Import services
 import { EmulatorService } from "./services/EmulatorService";
+import { ROMService } from "./services/ROMService";
 
 // Import types
 import { EmulatorState } from "./types/emulator";
@@ -29,6 +30,7 @@ function Content() {
   const [currentROMData, setCurrentROMData] = useState<Uint8Array | undefined>();
   const [currentROMName, setCurrentROMName] = useState<string | undefined>();
   const [emulatorService] = useState(() => new EmulatorService());
+  const [romService] = useState(() => new ROMService());
 
   useEffect(() => {
     // Initialize plugin
@@ -183,6 +185,7 @@ function Content() {
       <ROMSelector
         onROMSelected={handleROMSelected}
         onError={handleEmulatorError}
+        romService={romService}
       />
 
       <GameBoyEmulator
