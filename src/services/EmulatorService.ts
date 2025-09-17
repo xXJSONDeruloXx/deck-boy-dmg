@@ -4,10 +4,13 @@ import { Gameboy } from '@neil-morrison44/gameboy-emulator';
 export class EmulatorService {
   private emulator: Gameboy | null = null;
   private canvas: HTMLCanvasElement | null = null;
+  private context: CanvasRenderingContext2D | null = null;
   private isRunning = false;
+  private isInitialized = false;
 
   constructor() {
     // Initialize emulator service
+    this.emulator = new Gameboy({ sound: true });
   }
 
   /**
@@ -16,7 +19,24 @@ export class EmulatorService {
   async initialize(canvas: HTMLCanvasElement): Promise<void> {
     try {
       this.canvas = canvas;
-      // TODO: Initialize GameBoy emulator instance with canvas
+      this.context = canvas.getContext('2d');
+      
+      if (!this.context) {
+        throw new Error('Failed to get canvas 2D context');
+      }
+
+      if (!this.emulator) {
+        this.emulator = new Gameboy({ sound: true });
+      }
+
+      // Set up the frame callback to render to canvas
+      this.emulator.onFrameFinished((imageData: ImageData) => {
+        if (this.context) {
+          this.context.putImageData(imageData, 0, 0);
+        }
+      });
+
+      this.isInitialized = true;
       console.log('Emulator service initialized with canvas:', canvas);
     } catch (error) {
       console.error('Failed to initialize emulator:', error);
@@ -29,14 +49,31 @@ export class EmulatorService {
    */
   async loadROM(romData: Uint8Array, romName: string): Promise<void> {
     try {
-      if (!this.canvas) {
+      if (!this.emulator) {
+        throw new Error('Emulator not created. This should not happen.');
+      }
+
+      if (!this.isInitialized) {
         throw new Error('Emulator not initialized. Call initialize() first.');
       }
 
-      // TODO: Load ROM into GameBoy emulator
-      console.log(`Loading ROM: ${romName} (${romData.length} bytes)`);
+      // Convert Uint8Array to ArrayBuffer as required by the emulator
+      const arrayBuffer = new ArrayBuffer(romData.length);
+      const view = new Uint8Array(arrayBuffer);
+      view.set(romData);
+
+      // Load the ROM into the emulator
+      this.emulator.loadGame(arrayBuffer);
       
-      // Placeholder for actual ROM loading
+      // Enable audio (if supported by browser environment)
+      try {
+        this.emulator.apu?.enableSound();
+      } catch (audioError) {
+        console.warn('Failed to enable audio:', audioError);
+        // Continue without audio if it fails
+      }
+
+      console.log(`ROM loaded successfully: ${romName} (${romData.length} bytes)`);
       this.isRunning = false;
     } catch (error) {
       console.error('Failed to load ROM:', error);
@@ -50,10 +87,14 @@ export class EmulatorService {
   play(): void {
     try {
       if (!this.emulator) {
-        throw new Error('No ROM loaded');
+        throw new Error('No emulator instance');
+      }
+
+      if (!this.isInitialized) {
+        throw new Error('Emulator not initialized');
       }
       
-      // TODO: Start emulator execution
+      this.emulator.run();
       this.isRunning = true;
       console.log('Emulator started');
     } catch (error) {
@@ -67,7 +108,11 @@ export class EmulatorService {
    */
   pause(): void {
     try {
-      // TODO: Pause emulator execution
+      if (!this.emulator) {
+        throw new Error('No emulator instance');
+      }
+
+      this.emulator.stop();
       this.isRunning = false;
       console.log('Emulator paused');
     } catch (error) {
@@ -81,9 +126,17 @@ export class EmulatorService {
    */
   reset(): void {
     try {
-      // TODO: Reset emulator state
+      if (!this.emulator) {
+        throw new Error('No emulator instance');
+      }
+
+      // Stop the emulator
+      this.emulator.stop();
+      
+      // For a proper reset, we might need to reload the ROM
+      // The gameboy emulator doesn't seem to have a built-in reset method
+      console.log('Emulator stopped (reset functionality may require ROM reload)');
       this.isRunning = false;
-      console.log('Emulator reset');
     } catch (error) {
       console.error('Failed to reset emulator:', error);
       throw error;
@@ -91,13 +144,23 @@ export class EmulatorService {
   }
 
   /**
-   * Save current emulator state
+   * Save current emulator state (cartridge SRAM)
    */
   saveState(): Uint8Array | null {
     try {
-      // TODO: Save emulator state
-      console.log('Saving emulator state');
-      return null; // Placeholder
+      if (!this.emulator) {
+        throw new Error('No emulator instance');
+      }
+
+      // Get cartridge save RAM (for games that support saves)
+      const saveRam = this.emulator.getCartridgeSaveRam();
+      if (saveRam) {
+        console.log('Cartridge save data retrieved:', saveRam.byteLength, 'bytes');
+        return new Uint8Array(saveRam);
+      }
+      
+      console.log('No save data available');
+      return null;
     } catch (error) {
       console.error('Failed to save state:', error);
       throw error;
@@ -105,12 +168,21 @@ export class EmulatorService {
   }
 
   /**
-   * Load emulator state
+   * Load emulator state (cartridge SRAM)
    */
   loadState(stateData: Uint8Array): void {
     try {
-      // TODO: Load emulator state
-      console.log('Loading emulator state:', stateData.length, 'bytes');
+      if (!this.emulator) {
+        throw new Error('No emulator instance');
+      }
+
+      // Convert Uint8Array to ArrayBuffer
+      const arrayBuffer = new ArrayBuffer(stateData.length);
+      const view = new Uint8Array(arrayBuffer);
+      view.set(stateData);
+
+      this.emulator.setCartridgeSaveRam(arrayBuffer);
+      console.log('Save data loaded:', stateData.length, 'bytes');
     } catch (error) {
       console.error('Failed to load state:', error);
       throw error;
@@ -121,7 +193,21 @@ export class EmulatorService {
    * Check if emulator is currently running
    */
   get running(): boolean {
-    return this.isRunning;
+    return this.isRunning && !this.emulator?.stopped;
+  }
+
+  /**
+   * Check if emulator is initialized
+   */
+  get initialized(): boolean {
+    return this.isInitialized;
+  }
+
+  /**
+   * Get the GameBoy instance for advanced operations
+   */
+  get gameboy(): Gameboy | null {
+    return this.emulator;
   }
 
   /**
@@ -129,11 +215,16 @@ export class EmulatorService {
    */
   dispose(): void {
     try {
-      if (this.isRunning) {
-        this.pause();
+      if (this.emulator && this.isRunning) {
+        this.emulator.stop();
       }
-      this.emulator = null;
+      
+      this.isRunning = false;
+      this.isInitialized = false;
+      this.context = null;
       this.canvas = null;
+      // Note: We don't set emulator to null as it might be needed for cleanup
+      
       console.log('Emulator service disposed');
     } catch (error) {
       console.error('Error during emulator disposal:', error);

@@ -27,6 +27,7 @@ function Content() {
     isLoaded: false
   });
   const [currentROMData, setCurrentROMData] = useState<Uint8Array | undefined>();
+  const [currentROMName, setCurrentROMName] = useState<string | undefined>();
   const [emulatorService] = useState(() => new EmulatorService());
 
   useEffect(() => {
@@ -57,29 +58,50 @@ function Content() {
   const handleROMSelected = async (romData: Uint8Array, romName: string) => {
     try {
       setCurrentROMData(romData);
+      setCurrentROMName(romName);
       setEmulatorState(prev => ({
         ...prev,
         currentROM: romName,
-        isLoaded: true,
+        isLoaded: false, // Will be set to true when ROM is actually loaded
         error: undefined
       }));
       
       toaster.toast({
-        title: "ROM Loaded",
-        body: `${romName} loaded successfully`
+        title: "ROM Selected",
+        body: `${romName} selected for loading`
       });
     } catch (error) {
-      console.error("Failed to load ROM:", error);
+      console.error("Failed to select ROM:", error);
       setEmulatorState(prev => ({
         ...prev,
-        error: error instanceof Error ? error.message : "Failed to load ROM"
+        error: error instanceof Error ? error.message : "Failed to select ROM"
       }));
     }
   };
 
+  const handleROMLoaded = () => {
+    setEmulatorState(prev => ({
+      ...prev,
+      isLoaded: true
+    }));
+    
+    toaster.toast({
+      title: "ROM Loaded",
+      body: `${currentROMName} loaded successfully`
+    });
+  };
+
   const handlePlayPause = () => {
     try {
-      if (emulatorState.isPlaying) {
+      if (!emulatorService.initialized) {
+        throw new Error("Emulator not initialized");
+      }
+
+      if (!emulatorState.isLoaded) {
+        throw new Error("No ROM loaded");
+      }
+
+      if (emulatorService.running) {
         emulatorService.pause();
         setEmulatorState(prev => ({ ...prev, isPlaying: false }));
         toaster.toast({ title: "Emulator", body: "Paused" });
@@ -165,7 +187,10 @@ function Content() {
 
       <GameBoyEmulator
         romData={currentROMData}
+        romName={currentROMName}
+        emulatorService={emulatorService}
         onError={handleEmulatorError}
+        onROMLoaded={handleROMLoaded}
       />
 
       <EmulatorControls
