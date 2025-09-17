@@ -28,15 +28,15 @@ Create a Steam Deck plugin that integrates the gameboy.js emulator library to pr
 **Estimated Time**: 2-3 hours
 
 #### 1.1 Update Package Configuration
-- [ ] Modify `package.json` to include gameboy.js dependency
-- [ ] Add necessary TypeScript types for canvas and file system
-- [ ] Update plugin metadata in `plugin.json`
-- [ ] Set appropriate plugin name, description, and author
+- [x] Modify `package.json` to include gameboy.js dependency
+- [x] Add necessary TypeScript types for canvas and file system
+- [x] Update plugin metadata in `plugin.json`
+- [x] Set appropriate plugin name, description, and author
 
 #### 1.2 Install Dependencies
-- [ ] Add gameboy.js library: `pnpm add gameboy.js`
-- [ ] Add file system utilities if needed for ROM directory access
-- [ ] Install any additional TypeScript definitions
+- [x] Add gameboy.js library: `pnpm add gameboy.js`
+- [x] Add file system utilities if needed for ROM directory access
+- [x] Install any additional TypeScript definitions
 
 #### 1.3 Project Structure Planning
 ```

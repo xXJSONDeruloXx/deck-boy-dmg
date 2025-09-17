@@ -1,7 +1,7 @@
 {
-  "name": "decky-plugin-template",
-  "version": "0.0.1",
-  "description": "A template to quickly create decky plugins from scratch, based on TypeScript and webpack",
+  "name": "deck-boy-dmg",
+  "version": "1.0.0",
+  "description": "Game Boy emulator plugin for Steam Deck using gameboy.js",
   "type": "module",
   "scripts": {
     "build": "rollup -c",
@@ -10,21 +10,24 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SteamDeckHomebrew/decky-plugin-template.git"
+    "url": "git+https://github.com/xXJSONDeruloXx/deck-boy-dmg.git"
   },
   "keywords": [
     "decky",
     "plugin",
-    "plugin-template",
+    "gameboy",
+    "emulator",
     "steam-deck",
-    "deck"
+    "deck",
+    "dmg",
+    "retro"
   ],
-  "author": "You <you@you.tld>",
-  "license": "BSD-3-Clause",
+  "author": "xXJSONDeruloXx",
+  "license": "MIT",
   "bugs": {
-    "url": "https://github.com/SteamDeckHomebrew/decky-plugin-template/issues"
+    "url": "https://github.com/xXJSONDeruloXx/deck-boy-dmg/issues"
   },
-  "homepage": "https://github.com/SteamDeckHomebrew/decky-plugin-template#readme",
+  "homepage": "https://github.com/xXJSONDeruloXx/deck-boy-dmg#readme",
   "devDependencies": {
     "@decky/rollup": "^1.0.1",
     "@decky/ui": "^4.7.2",
@@ -36,6 +39,7 @@
   },
   "dependencies": {
     "@decky/api": "^1.1.2",
+    "@neil-morrison44/gameboy-emulator": "^1.3.0",
     "react-icons": "^5.3.0",
     "tslib": "^2.7.0"
   },

@@ -1,115 +1,199 @@
 import {
-  ButtonItem,
   PanelSection,
   PanelSectionRow,
-  Navigation,
   staticClasses
 } from "@decky/ui";
 import {
-  addEventListener,
-  removeEventListener,
-  callable,
   definePlugin,
-  toaster,
-  // routerHook
+  toaster
 } from "@decky/api"
-import { useState } from "react";
-import { FaShip } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import { FaGamepad } from "react-icons/fa";
 
-// import logo from "../assets/logo.png";
+// Import our components
+import { GameBoyEmulator } from "./components/GameBoyEmulator";
+import { ROMSelector } from "./components/ROMSelector";
+import { EmulatorControls } from "./components/EmulatorControls";
 
-// This function calls the python function "add", which takes in two numbers and returns their sum (as a number)
-// Note the type annotations:
-//  the first one: [first: number, second: number] is for the arguments
-//  the second one: number is for the return value
-const add = callable<[first: number, second: number], number>("add");
+// Import services
+import { EmulatorService } from "./services/EmulatorService";
 
-// This function calls the python function "start_timer", which takes in no arguments and returns nothing.
-// It starts a (python) timer which eventually emits the event 'timer_event'
-const startTimer = callable<[], void>("start_timer");
+// Import types
+import { EmulatorState } from "./types/emulator";
 
 function Content() {
-  const [result, setResult] = useState<number | undefined>();
+  const [emulatorState, setEmulatorState] = useState<EmulatorState>({
+    isPlaying: false,
+    isLoaded: false
+  });
+  const [currentROMData, setCurrentROMData] = useState<Uint8Array | undefined>();
+  const [emulatorService] = useState(() => new EmulatorService());
 
-  const onClick = async () => {
-    const result = await add(Math.random(), Math.random());
-    setResult(result);
+  useEffect(() => {
+    // Initialize plugin
+    console.log("Deck Boy DMG plugin initializing...");
+    
+    // Test emulator service
+    try {
+      console.log("Emulator service created successfully");
+      toaster.toast({
+        title: "Deck Boy DMG",
+        body: "Plugin loaded successfully!"
+      });
+    } catch (error) {
+      console.error("Failed to initialize emulator:", error);
+      setEmulatorState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Initialization failed"
+      }));
+    }
+    
+    return () => {
+      // Cleanup
+      emulatorService.dispose();
+    };
+  }, [emulatorService]);
+
+  const handleROMSelected = async (romData: Uint8Array, romName: string) => {
+    try {
+      setCurrentROMData(romData);
+      setEmulatorState(prev => ({
+        ...prev,
+        currentROM: romName,
+        isLoaded: true,
+        error: undefined
+      }));
+      
+      toaster.toast({
+        title: "ROM Loaded",
+        body: `${romName} loaded successfully`
+      });
+    } catch (error) {
+      console.error("Failed to load ROM:", error);
+      setEmulatorState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Failed to load ROM"
+      }));
+    }
+  };
+
+  const handlePlayPause = () => {
+    try {
+      if (emulatorState.isPlaying) {
+        emulatorService.pause();
+        setEmulatorState(prev => ({ ...prev, isPlaying: false }));
+        toaster.toast({ title: "Emulator", body: "Paused" });
+      } else {
+        emulatorService.play();
+        setEmulatorState(prev => ({ ...prev, isPlaying: true }));
+        toaster.toast({ title: "Emulator", body: "Playing" });
+      }
+    } catch (error) {
+      console.error("Failed to toggle play state:", error);
+      setEmulatorState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Failed to toggle playback"
+      }));
+    }
+  };
+
+  const handleReset = () => {
+    try {
+      emulatorService.reset();
+      setEmulatorState(prev => ({ ...prev, isPlaying: false }));
+      toaster.toast({ title: "Emulator", body: "Reset" });
+    } catch (error) {
+      console.error("Failed to reset emulator:", error);
+    }
+  };
+
+  const handleSaveState = () => {
+    try {
+      const saveData = emulatorService.saveState();
+      if (saveData) {
+        toaster.toast({ title: "Save State", body: "State saved successfully" });
+      }
+    } catch (error) {
+      console.error("Failed to save state:", error);
+      toaster.toast({ title: "Save State", body: "Failed to save state" });
+    }
+  };
+
+  const handleLoadState = () => {
+    try {
+      // TODO: Implement state loading UI
+      toaster.toast({ title: "Load State", body: "Feature coming soon" });
+    } catch (error) {
+      console.error("Failed to load state:", error);
+      toaster.toast({ title: "Load State", body: "Failed to load state" });
+    }
+  };
+
+  const handleEmulatorError = (error: string) => {
+    setEmulatorState(prev => ({ ...prev, error }));
+    toaster.toast({ title: "Emulator Error", body: error });
   };
 
   return (
-    <PanelSection title="Panel Section">
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={onClick}
-        >
-          {result ?? "Add two numbers via Python"}
-        </ButtonItem>
-      </PanelSectionRow>
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={() => startTimer()}
-        >
-          {"Start Python timer"}
-        </ButtonItem>
-      </PanelSectionRow>
+    <>
+      <PanelSection title="Status">
+        <PanelSectionRow>
+          <div style={{ 
+            padding: "8px", 
+            backgroundColor: emulatorState.error ? "#ff6b6b22" : "#51cf6622",
+            borderRadius: "4px",
+            border: `1px solid ${emulatorState.error ? "#ff6b6b" : "#51cf66"}`
+          }}>
+            {emulatorState.error ? (
+              <span style={{ color: "#ff6b6b" }}>❌ {emulatorState.error}</span>
+            ) : emulatorState.isLoaded ? (
+              <span style={{ color: "#51cf66" }}>
+                ✅ ROM: {emulatorState.currentROM} | 
+                {emulatorState.isPlaying ? " ▶️ Playing" : " ⏸️ Paused"}
+              </span>
+            ) : (
+              <span style={{ color: "#ffd93d" }}>⚠️ No ROM loaded</span>
+            )}
+          </div>
+        </PanelSectionRow>
+      </PanelSection>
 
-      {/* <PanelSectionRow>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <img src={logo} />
-        </div>
-      </PanelSectionRow> */}
+      <ROMSelector
+        onROMSelected={handleROMSelected}
+        onError={handleEmulatorError}
+      />
 
-      {/*<PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={() => {
-            Navigation.Navigate("/decky-plugin-test");
-            Navigation.CloseSideMenus();
-          }}
-        >
-          Router
-        </ButtonItem>
-      </PanelSectionRow>*/}
-    </PanelSection>
+      <GameBoyEmulator
+        romData={currentROMData}
+        onError={handleEmulatorError}
+      />
+
+      <EmulatorControls
+        isPlaying={emulatorState.isPlaying}
+        onPlayPause={handlePlayPause}
+        onReset={handleReset}
+        onSaveState={handleSaveState}
+        onLoadState={handleLoadState}
+      />
+    </>
   );
 };
 
 export default definePlugin(() => {
-  console.log("Template plugin initializing, this is called once on frontend startup")
-
-  // serverApi.routerHook.addRoute("/decky-plugin-test", DeckyPluginRouterTest, {
-  //   exact: true,
-  // });
-
-  // Add an event listener to the "timer_event" event from the backend
-  const listener = addEventListener<[
-    test1: string,
-    test2: boolean,
-    test3: number
-  ]>("timer_event", (test1, test2, test3) => {
-    console.log("Template got timer_event with:", test1, test2, test3)
-    toaster.toast({
-      title: "template got timer_event",
-      body: `${test1}, ${test2}, ${test3}`
-    });
-  });
+  console.log("Deck Boy DMG plugin initializing, this is called once on frontend startup")
 
   return {
     // The name shown in various decky menus
-    name: "Test Plugin",
+    name: "Deck Boy DMG",
     // The element displayed at the top of your plugin's menu
-    titleView: <div className={staticClasses.Title}>Decky Example Plugin</div>,
+    titleView: <div className={staticClasses.Title}>Deck Boy DMG</div>,
     // The content of your plugin's menu
     content: <Content />,
     // The icon displayed in the plugin list
-    icon: <FaShip />,
+    icon: <FaGamepad />,
     // The function triggered when your plugin unloads
     onDismount() {
-      console.log("Unloading")
-      removeEventListener("timer_event", listener);
-      // serverApi.routerHook.removeRoute("/decky-plugin-test");
+      console.log("Deck Boy DMG plugin unloading")
     },
   };
 });
