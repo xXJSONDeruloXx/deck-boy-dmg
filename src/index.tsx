@@ -280,6 +280,18 @@ function Content() {
         </PanelSectionRow>
       </PanelSection>
 
+      <PanelSection title="Debug Info">
+        <PanelSectionRow>
+          <div style={{ fontSize: "11px", color: "#aaa", fontFamily: "monospace" }}>
+            <div>ROM Data: {currentROMData ? `${currentROMData.length} bytes` : "None"}</div>
+            <div>ROM Name: {currentROMName || "None"}</div>
+            <div>Emulator Service: {emulatorService ? "✅" : "❌"}</div>
+            <div>ROM Service: {romService ? "✅" : "❌"}</div>
+            <div>State: {JSON.stringify(emulatorState, null, 2).slice(0, 100)}...</div>
+          </div>
+        </PanelSectionRow>
+      </PanelSection>
+
       <ROMSelector
         onROMSelected={handleROMSelected}
         onError={handleEmulatorError}
