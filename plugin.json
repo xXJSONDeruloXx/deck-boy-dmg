@@ -1,11 +1,11 @@
 {
-  "name": "Example Plugin",
-  "author": "John Doe",
-  "flags": ["debug", "_root"],
+  "name": "Deck Boy DMG",
+  "author": "xXJSONDeruloXx",
+  "flags": ["debug"],
   "api_version": 1,
   "publish": {
-    "tags": ["template", "root"],
-    "description": "Decky example plugin.",
-    "image": "https://opengraph.githubassets.com/1/SteamDeckHomebrew/PluginLoader"
+    "tags": ["emulator", "gameboy", "retro", "gaming"],
+    "description": "Game Boy emulator plugin for Steam Deck. Play classic Game Boy games directly in the Steam Deck interface.",
+    "image": "https://opengraph.githubassets.com/1/xXJSONDeruloXx/deck-boy-dmg"
   }
 }
