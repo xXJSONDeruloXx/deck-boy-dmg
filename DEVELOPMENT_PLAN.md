@@ -24,7 +24,7 @@ Create a Steam Deck plugin that integrates the gameboy.js emulator library to pr
 
 ## Step-by-Step Development Plan
 
-### Phase 1: Project Setup and Dependencies
+### Phase 1: Project Setup and Dependencies ✅ COMPLETED
 **Estimated Time**: 2-3 hours
 
 #### 1.1 Update Package Configuration
@@ -34,71 +34,62 @@ Create a Steam Deck plugin that integrates the gameboy.js emulator library to pr
 - [x] Set appropriate plugin name, description, and author
 
 #### 1.2 Install Dependencies
-- [x] Add gameboy.js library: `pnpm add gameboy.js`
+- [x] Add gameboy.js library: `pnpm add @neil-morrison44/gameboy-emulator`
 - [x] Add file system utilities if needed for ROM directory access
 - [x] Install any additional TypeScript definitions
 
 #### 1.3 Project Structure Planning
-```
-src/
-├── index.tsx              # Main plugin entry
-├── components/
-│   ├── GameBoyEmulator.tsx    # Main emulator component
-│   ├── ROMSelector.tsx        # ROM file selection
-│   └── EmulatorControls.tsx   # Play/pause/reset controls
-├── services/
-│   ├── EmulatorService.ts     # Game Boy instance management
-│   └── ROMService.ts          # ROM loading and directory scanning
-└── types/
-    └── gameboy.d.ts          # Type definitions for gameboy.js
-```
+- [x] Created complete directory structure with components, services, and types
+- [x] Set up GameBoyEmulator, ROMSelector, EmulatorControls components
+- [x] Created EmulatorService and ROMService classes
+- [x] Added TypeScript type definitions
 
-### Phase 2: Core Emulator Integration
+### Phase 2: Core Emulator Integration ✅ COMPLETED
 **Estimated Time**: 4-5 hours
 
 #### 2.1 Basic Gameboy.js Integration
-- [ ] Import gameboy.js library properly for TypeScript
-- [ ] Create basic canvas element in React component
-- [ ] Initialize GameboyJS.Gameboy instance
-- [ ] Test basic emulator instantiation
+- [x] Import gameboy.js library properly for TypeScript
+- [x] Create basic canvas element in React component
+- [x] Initialize GameboyJS.Gameboy instance
+- [x] Test basic emulator instantiation
 
 #### 2.2 Canvas Rendering Setup
-- [ ] Create React component with canvas element
-- [ ] Set up proper canvas sizing for Steam Deck display
-- [ ] Configure Game Boy screen dimensions (160x144 native, scaled appropriately)
-- [ ] Handle canvas reference and lifecycle in React
+- [x] Create React component with canvas element
+- [x] Set up proper canvas sizing for Steam Deck display
+- [x] Configure Game Boy screen dimensions (160x144 native, scaled appropriately)
+- [x] Handle canvas reference and lifecycle in React
 
 #### 2.3 ROM Loading Infrastructure
-- [ ] Create ROM service for directory scanning
-- [ ] Implement custom ROM reader for local directory access
-- [ ] Set up default ROM directory path (`/home/deck/GameBoyROMs/` or similar)
-- [ ] Handle ROM file validation and error states
+- [x] Create ROM service for directory scanning
+- [x] Implement basic ROM reader structure for local directory access
+- [x] Set up default ROM directory path (`/home/deck/GameBoyROMs/`)
+- [x] Handle ROM file validation and error states
 
-### Phase 3: User Interface Development
+### Phase 3: User Interface Development 🔄 IN PROGRESS
 **Estimated Time**: 3-4 hours
 
 #### 3.1 Main Plugin Panel Layout
-- [ ] Design plugin panel layout using @decky/ui components
-- [ ] Create sections for:
+- [x] Design plugin panel layout using @decky/ui components
+- [x] Create sections for:
   - Game Boy screen display
   - ROM selection dropdown/list
   - Emulator controls (play/pause/reset)
   - Status information
-- [ ] Ensure responsive design for Steam Deck screen
+- [x] Ensure responsive design for Steam Deck screen
 
 #### 3.2 ROM Selection Component
-- [ ] Create ROM list/dropdown component
-- [ ] Display available ROM files from directory
+- [x] Create ROM list/dropdown component
+- [ ] Display available ROM files from directory (currently shows placeholder ROMs)
 - [ ] Show ROM metadata (name, size) if available
-- [ ] Handle ROM selection and loading
+- [x] Handle ROM selection and loading
 - [ ] Add refresh functionality for directory scanning
 
 #### 3.3 Emulator Controls
-- [ ] Play/Pause toggle button
-- [ ] Reset emulator button  
+- [x] Play/Pause toggle button
+- [x] Reset emulator button  
 - [ ] Volume controls (if needed)
-- [ ] Save state management buttons (save/load)
-- [ ] Status indicators (playing, paused, error states)
+- [x] Save state management buttons (save/load)
+- [x] Status indicators (playing, paused, error states)
 
 ### Phase 4: Input Handling and Controls
 **Estimated Time**: 2-3 hours
