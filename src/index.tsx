@@ -9,7 +9,7 @@ import {
 } from "@decky/api";
 import { useState, useEffect, useRef } from "react";
 import { FaGamepad } from "react-icons/fa";
-import WasmBoy from "wasmboy";
+import { WasmBoy } from "wasmboy";
 
 // Status type for the emulator
 type EmulatorStatus = "loading" | "running" | "error";
@@ -75,16 +75,20 @@ function GameBoyEmulator() {
         }, canvasRef.current);
 
         // Fetch the ROM from the plugin directory
-        let romPath = "";
+        // Decky serves plugin files from http://127.0.0.1:1337/plugins/<PluginName>/
+        // The frontend JS is served from /dist/, so we need to go up one level
+        // Get the current script's base URL and construct the ROM path
+        const currentUrl = window.location.href;
+        let romPath = "tetris.gb";
         
-        // Try using DeckyPluginLoader if available
-        if ((window as any).DeckyPluginLoader) {
-          romPath = (window as any).DeckyPluginLoader.resolvePluginPath("tetris.gb");
-        } else {
-          // Fallback to relative path
-          romPath = "./tetris.gb";
+        // If we're running in Decky, construct the proper path
+        if (currentUrl.includes("127.0.0.1:1337")) {
+          // We're in the Decky environment
+          // The plugin name has spaces, so it's URL-encoded as "Deck%20Boy%20DMG"
+          romPath = "http://127.0.0.1:1337/plugins/Deck%20Boy%20DMG/tetris.gb";
         }
 
+        console.log("Attempting to load ROM from:", romPath);
         const response = await fetch(romPath);
         if (!response.ok) {
           throw new Error(`Failed to load ROM: ${response.statusText}`);

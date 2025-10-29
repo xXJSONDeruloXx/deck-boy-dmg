@@ -25,7 +25,7 @@ declare module "wasmboy" {
     SELECT: number;
   }
 
-  const WasmBoy: {
+  interface WasmBoyAPI {
     config(config: WasmBoyConfig, canvas?: HTMLCanvasElement): Promise<void>;
     loadROM(rom: ArrayBuffer | Uint8Array): Promise<void>;
     play(): Promise<void>;
@@ -33,7 +33,7 @@ declare module "wasmboy" {
     reset(): Promise<void>;
     setJoypadState(key: number, pressed: boolean): void;
     GAMEPAD_STATE: WasmBoyGamepadState;
-  };
+  }
 
-  export default WasmBoy;
+  export const WasmBoy: WasmBoyAPI;
 }
