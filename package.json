@@ -37,7 +37,8 @@
   "dependencies": {
     "@decky/api": "^1.1.2",
     "react-icons": "^5.3.0",
-    "tslib": "^2.7.0"
+    "tslib": "^2.7.0",
+    "wasmboy": "^0.7.1"
   },
   "pnpm": {
     "peerDependencyRules": {

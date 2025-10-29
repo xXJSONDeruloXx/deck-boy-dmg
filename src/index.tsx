@@ -1,115 +1,237 @@
 import {
-  ButtonItem,
   PanelSection,
   PanelSectionRow,
-  Navigation,
   staticClasses
 } from "@decky/ui";
 import {
-  addEventListener,
-  removeEventListener,
-  callable,
   definePlugin,
-  toaster,
-  // routerHook
-} from "@decky/api"
-import { useState } from "react";
-import { FaShip } from "react-icons/fa";
+  toaster
+} from "@decky/api";
+import { useState, useEffect, useRef } from "react";
+import { FaGamepad } from "react-icons/fa";
+import WasmBoy from "wasmboy";
 
-// import logo from "../assets/logo.png";
+// Status type for the emulator
+type EmulatorStatus = "loading" | "running" | "error";
 
-// This function calls the python function "add", which takes in two numbers and returns their sum (as a number)
-// Note the type annotations:
-//  the first one: [first: number, second: number] is for the arguments
-//  the second one: number is for the return value
-const add = callable<[first: number, second: number], number>("add");
+// WasmBoy key constants (defined as numbers matching WasmBoy's internal values)
+const GAMEPAD_KEYS = {
+  UP: 0,
+  DOWN: 1,
+  LEFT: 2,
+  RIGHT: 3,
+  A: 4,
+  B: 5,
+  START: 6,
+  SELECT: 7
+};
 
-// This function calls the python function "start_timer", which takes in no arguments and returns nothing.
-// It starts a (python) timer which eventually emits the event 'timer_event'
-const startTimer = callable<[], void>("start_timer");
+function GameBoyEmulator() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [status, setStatus] = useState<EmulatorStatus>("loading");
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const keyListenersRef = useRef<{
+    handleKeyDown: (e: KeyboardEvent) => void;
+    handleKeyUp: (e: KeyboardEvent) => void;
+  } | null>(null);
 
-function Content() {
-  const [result, setResult] = useState<number | undefined>();
+  // Keyboard to Game Boy button mapping
+  const keyMap: { [key: string]: number } = {
+    ArrowUp: GAMEPAD_KEYS.UP,
+    ArrowDown: GAMEPAD_KEYS.DOWN,
+    ArrowLeft: GAMEPAD_KEYS.LEFT,
+    ArrowRight: GAMEPAD_KEYS.RIGHT,
+    z: GAMEPAD_KEYS.A,
+    x: GAMEPAD_KEYS.B,
+    Enter: GAMEPAD_KEYS.START,
+    Shift: GAMEPAD_KEYS.SELECT
+  };
 
-  const onClick = async () => {
-    const result = await add(Math.random(), Math.random());
-    setResult(result);
+  useEffect(() => {
+    let mounted = true;
+
+    const initEmulator = async () => {
+      try {
+        if (!canvasRef.current) {
+          throw new Error("Canvas element not found");
+        }
+
+        setStatus("loading");
+
+        // Initialize WasmBoy with the canvas
+        await WasmBoy.config({
+          headless: false,
+          isGBC: false,
+          gameboySpeed: 1,
+          frameSkip: 0,
+          audioBatchProcessing: true,
+          audioAccumulateSamples: true,
+          timersBatchProcessing: false,
+          graphicsBatchProcessing: false,
+          disableSmoothScaling: false,
+          updateGraphicsCallback: false,
+          updateAudioCallback: false,
+          saveStateCallback: false,
+        }, canvasRef.current);
+
+        // Fetch the ROM from the plugin directory
+        let romPath = "";
+        
+        // Try using DeckyPluginLoader if available
+        if ((window as any).DeckyPluginLoader) {
+          romPath = (window as any).DeckyPluginLoader.resolvePluginPath("tetris.gb");
+        } else {
+          // Fallback to relative path
+          romPath = "./tetris.gb";
+        }
+
+        const response = await fetch(romPath);
+        if (!response.ok) {
+          throw new Error(`Failed to load ROM: ${response.statusText}`);
+        }
+
+        const romBuffer = await response.arrayBuffer();
+        
+        if (!mounted) return;
+
+        // Load and play the ROM
+        await WasmBoy.loadROM(romBuffer);
+        await WasmBoy.play();
+
+        if (mounted) {
+          setStatus("running");
+          toaster.toast({
+            title: "Game Boy Emulator",
+            body: "Tetris loaded successfully!"
+          });
+        }
+      } catch (error) {
+        console.error("Failed to initialize WasmBoy:", error);
+        if (mounted) {
+          setStatus("error");
+          setErrorMessage(error instanceof Error ? error.message : "Unknown error");
+          toaster.toast({
+            title: "Game Boy Emulator Error",
+            body: error instanceof Error ? error.message : "Failed to load ROM"
+          });
+        }
+      }
+    };
+
+    initEmulator();
+
+    return () => {
+      mounted = false;
+      // Cleanup WasmBoy on unmount
+      WasmBoy.pause().catch(console.error);
+    };
+  }, []);
+
+  // Setup keyboard controls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const gameboyKey = keyMap[e.key];
+      if (gameboyKey !== undefined) {
+        e.preventDefault();
+        WasmBoy.setJoypadState(gameboyKey, true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const gameboyKey = keyMap[e.key];
+      if (gameboyKey !== undefined) {
+        e.preventDefault();
+        WasmBoy.setJoypadState(gameboyKey, false);
+      }
+    };
+
+    keyListenersRef.current = { handleKeyDown, handleKeyUp };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  const getStatusText = () => {
+    switch (status) {
+      case "loading":
+        return "Loading ROM…";
+      case "running":
+        return "Running Tetris";
+      case "error":
+        return `Error: ${errorMessage}`;
+      default:
+        return "";
+    }
   };
 
   return (
-    <PanelSection title="Panel Section">
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={onClick}
-        >
-          {result ?? "Add two numbers via Python"}
-        </ButtonItem>
-      </PanelSectionRow>
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={() => startTimer()}
-        >
-          {"Start Python timer"}
-        </ButtonItem>
-      </PanelSectionRow>
-
-      {/* <PanelSectionRow>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <img src={logo} />
+    <div style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "20px",
+      gap: "15px"
+    }}>
+      <canvas
+        ref={canvasRef}
+        width={160}
+        height={144}
+        style={{
+          border: "2px solid #333",
+          borderRadius: "4px",
+          imageRendering: "pixelated",
+          backgroundColor: "#000",
+          maxWidth: "100%",
+          height: "auto"
+        }}
+      />
+      <div style={{
+        fontSize: "14px",
+        color: status === "error" ? "#ff5555" : "#aaa",
+        textAlign: "center"
+      }}>
+        {getStatusText()}
+      </div>
+      {status === "running" && (
+        <div style={{
+          fontSize: "11px",
+          color: "#666",
+          textAlign: "center",
+          marginTop: "10px"
+        }}>
+          Controls: Arrows (D-pad) • Z (A) • X (B) • Enter (Start) • Shift (Select)
         </div>
-      </PanelSectionRow> */}
+      )}
+    </div>
+  );
+}
 
-      {/*<PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={() => {
-            Navigation.Navigate("/decky-plugin-test");
-            Navigation.CloseSideMenus();
-          }}
-        >
-          Router
-        </ButtonItem>
-      </PanelSectionRow>*/}
+function Content() {
+  return (
+    <PanelSection title="Game Boy Emulator">
+      <PanelSectionRow>
+        <GameBoyEmulator />
+      </PanelSectionRow>
     </PanelSection>
   );
-};
+}
 
 export default definePlugin(() => {
-  console.log("Template plugin initializing, this is called once on frontend startup")
-
-  // serverApi.routerHook.addRoute("/decky-plugin-test", DeckyPluginRouterTest, {
-  //   exact: true,
-  // });
-
-  // Add an event listener to the "timer_event" event from the backend
-  const listener = addEventListener<[
-    test1: string,
-    test2: boolean,
-    test3: number
-  ]>("timer_event", (test1, test2, test3) => {
-    console.log("Template got timer_event with:", test1, test2, test3)
-    toaster.toast({
-      title: "template got timer_event",
-      body: `${test1}, ${test2}, ${test3}`
-    });
-  });
+  console.log("Game Boy Emulator plugin initializing");
 
   return {
-    // The name shown in various decky menus
-    name: "Test Plugin",
-    // The element displayed at the top of your plugin's menu
-    titleView: <div className={staticClasses.Title}>Decky Example Plugin</div>,
-    // The content of your plugin's menu
+    name: "Deck Boy DMG",
+    titleView: <div className={staticClasses.Title}>Game Boy Emulator</div>,
     content: <Content />,
-    // The icon displayed in the plugin list
-    icon: <FaShip />,
-    // The function triggered when your plugin unloads
+    icon: <FaGamepad />,
     onDismount() {
-      console.log("Unloading")
-      removeEventListener("timer_event", listener);
-      // serverApi.routerHook.removeRoute("/decky-plugin-test");
+      console.log("Game Boy Emulator plugin unloading");
     },
   };
 });
