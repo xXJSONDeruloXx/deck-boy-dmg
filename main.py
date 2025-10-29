@@ -1,4 +1,5 @@
 import os
+import base64
 
 # The decky plugin module is located at decky-loader/plugin
 # For easy intellisense checkout the decky-loader code repo
@@ -10,6 +11,19 @@ class Plugin:
     # A normal method. It can be called from the TypeScript side using @decky/api.
     async def add(self, left: int, right: int) -> int:
         return left + right
+
+    async def get_rom(self) -> dict:
+        rom_path = os.path.join(os.path.dirname(__file__), "tetris.gb")
+        if not os.path.exists(rom_path):
+            decky.logger.error("ROM file not found at %s", rom_path)
+            return {"error": "ROM file missing"}
+
+        with open(rom_path, "rb") as rom_file:
+            rom_bytes = rom_file.read()
+
+        # Return as base64 so the frontend can easily convert back to bytes.
+        encoded = base64.b64encode(rom_bytes).decode("ascii")
+        return {"rom": encoded}
 
     async def long_running(self):
         await asyncio.sleep(15)

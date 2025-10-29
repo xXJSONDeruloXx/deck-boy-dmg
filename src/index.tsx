@@ -5,7 +5,8 @@ import {
 } from "@decky/ui";
 import {
   definePlugin,
-  toaster
+  toaster,
+  callable
 } from "@decky/api";
 import { useState, useEffect, useRef } from "react";
 import { FaGamepad } from "react-icons/fa";
@@ -25,6 +26,18 @@ const GAMEPAD_KEYS = {
   START: 6,
   SELECT: 7
 };
+
+function base64ToArrayBuffer(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i += 1) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+const getRom = callable<[], { rom?: string; error?: string }>("get_rom");
 
 function GameBoyEmulator() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,27 +87,13 @@ function GameBoyEmulator() {
           saveStateCallback: false,
         }, canvasRef.current);
 
-        // Fetch the ROM from the plugin directory
-        // Decky serves plugin files from http://127.0.0.1:1337/plugins/<PluginName>/
-        // The frontend JS is served from /dist/, so we need to go up one level
-        // Get the current script's base URL and construct the ROM path
-        const currentUrl = window.location.href;
-        let romPath = "tetris.gb";
-        
-        // If we're running in Decky, construct the proper path
-        if (currentUrl.includes("127.0.0.1:1337")) {
-          // We're in the Decky environment
-          // The plugin name has spaces, so it's URL-encoded as "Deck%20Boy%20DMG"
-          romPath = "http://127.0.0.1:1337/plugins/Deck%20Boy%20DMG/tetris.gb";
+        const response = await getRom();
+        const romBase64 = response?.rom;
+        if (!romBase64) {
+          throw new Error(response?.error ?? "ROM data missing");
         }
 
-        console.log("Attempting to load ROM from:", romPath);
-        const response = await fetch(romPath);
-        if (!response.ok) {
-          throw new Error(`Failed to load ROM: ${response.statusText}`);
-        }
-
-        const romBuffer = await response.arrayBuffer();
+        const romBuffer = base64ToArrayBuffer(romBase64);
         
         if (!mounted) return;
 
