@@ -119,7 +119,7 @@ function GameBoyEmulator() {
         if (mounted) {
           setStatus("running");
           toaster.toast({
-            title: "Game Boy Emulator",
+            title: "Deck Boy DMG",
             body: "Tetris loaded successfully!"
           });
         }
@@ -129,7 +129,7 @@ function GameBoyEmulator() {
           setStatus("error");
           setErrorMessage(error instanceof Error ? error.message : "Unknown error");
           toaster.toast({
-            title: "Game Boy Emulator Error",
+            title: "Deck Boy DMG Error",
             body: error instanceof Error ? error.message : "Failed to load ROM"
           });
         }
@@ -228,7 +228,7 @@ function GameBoyEmulator() {
 
 function Content() {
   return (
-    <PanelSection title="Game Boy Emulator">
+    <PanelSection title="Deck Boy DMG">
       <PanelSectionRow>
         <GameBoyEmulator />
       </PanelSectionRow>
@@ -237,15 +237,15 @@ function Content() {
 }
 
 export default definePlugin(() => {
-  console.log("Game Boy Emulator plugin initializing");
+  console.log("Deck Boy DMG plugin initializing");
 
   return {
     name: "Deck Boy DMG",
-    titleView: <div className={staticClasses.Title}>Game Boy Emulator</div>,
+    titleView: <div className={staticClasses.Title}>Deck Boy DMG</div>,
     content: <Content />,
     icon: <FaGamepad />,
     onDismount() {
-      console.log("Game Boy Emulator plugin unloading");
+      console.log("Deck Boy DMG plugin unloading");
     },
   };
 });
