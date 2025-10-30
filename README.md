@@ -1,3 +1,11 @@
+# Deck Boy DMG - Something profoundly stupid
+
+![why-lmao](assets/image.png)
+
+
+---
+bla bla bla ill fill this out later
+
 # Decky Plugin Template [![Chat](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://deckbrew.xyz/discord)
 
 Reference example for using [decky-frontend-lib](https://github.com/SteamDeckHomebrew/decky-frontend-lib) (@decky/ui) in a [decky-loader](https://github.com/SteamDeckHomebrew/decky-loader) plugin.
