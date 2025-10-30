@@ -252,7 +252,7 @@ const useGameBoyEmulator = () => {
             headless: false,
             isGBC: false,
             gameboySpeed: 1,
-            frameSkip: 0,
+            frameSkip: 1,
             audioBatchProcessing: true,
             audioAccumulateSamples: true,
             timersBatchProcessing: false,
@@ -322,8 +322,13 @@ const useGameBoyEmulator = () => {
         window.clearTimeout(timeoutId);
       }
       pendingTimeoutsRef.current = [];
-      WasmBoy.pause().catch((error) => console.warn("Failed to pause WasmBoy", error));
+      
+      // Clean up WasmBoy to prevent memory leaks
+      WasmBoy.pause().catch((error: unknown) => console.warn("Failed to pause WasmBoy", error));
       WasmBoy.enableDefaultJoypad?.();
+      
+      // Reset the emulator state to free memory
+      WasmBoy.reset().catch((error: unknown) => console.warn("Failed to reset WasmBoy", error));
     };
   }, []);
 
