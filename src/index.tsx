@@ -522,15 +522,15 @@ const ControlButtons = ({ onPress }: { onPress: (joypadKey: JoypadKey) => void }
           }}
         >
           <ControlPadButton
-            label="START"
-            onPress={handlePress("START")}
+            label="SELECT"
+            onPress={handlePress("SELECT")}
             width={102}
             height={32}
             style={{ borderRadius: "16px" }}
           />
           <ControlPadButton
-            label="SELECT"
-            onPress={handlePress("SELECT")}
+            label="START"
+            onPress={handlePress("START")}
             width={102}
             height={32}
             style={{ borderRadius: "16px" }}
@@ -547,7 +547,7 @@ const Content = () => {
   return (
     <>
       <style>{CONTROL_PAD_STYLES}</style>
-      <PanelSection title="GAME BOY EMULATOR">
+      <PanelSection title="">
         <PanelSectionRow>
           <GameBoyCanvas canvasRef={canvasRef} status={status} errorMessage={errorMessage} />
         </PanelSectionRow>
