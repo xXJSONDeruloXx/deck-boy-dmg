@@ -16,25 +16,27 @@ import { WasmBoy } from "wasmboy";
 type EmulatorStatus = "loading" | "running" | "error";
 
 // WasmBoy key constants (defined as numbers matching WasmBoy's internal values)
-const GAMEPAD_KEYS = {
-  UP: 0,
-  DOWN: 1,
-  LEFT: 2,
-  RIGHT: 3,
-  A: 4,
-  B: 5,
-  START: 6,
-  SELECT: 7
+type JoypadKey = "UP" | "DOWN" | "LEFT" | "RIGHT" | "A" | "B" | "START" | "SELECT";
+
+const GAMEPAD_KEYS: Record<string, JoypadKey> = {
+  ArrowUp: "UP",
+  ArrowDown: "DOWN",
+  ArrowLeft: "LEFT",
+  ArrowRight: "RIGHT",
+  z: "A",
+  x: "B",
+  Enter: "START",
+  Shift: "SELECT"
 };
 
-function base64ToArrayBuffer(base64: string) {
+function base64ToUint8Array(base64: string) {
   const binaryString = atob(base64);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i += 1) {
     bytes[i] = binaryString.charCodeAt(i);
   }
-  return bytes.buffer;
+  return bytes;
 }
 
 const getRom = callable<[], { rom?: string; error?: string }>("get_rom");
@@ -48,16 +50,29 @@ function GameBoyEmulator() {
     handleKeyUp: (e: KeyboardEvent) => void;
   } | null>(null);
 
-  // Keyboard to Game Boy button mapping
-  const keyMap: { [key: string]: number } = {
-    ArrowUp: GAMEPAD_KEYS.UP,
-    ArrowDown: GAMEPAD_KEYS.DOWN,
-    ArrowLeft: GAMEPAD_KEYS.LEFT,
-    ArrowRight: GAMEPAD_KEYS.RIGHT,
-    z: GAMEPAD_KEYS.A,
-    x: GAMEPAD_KEYS.B,
-    Enter: GAMEPAD_KEYS.START,
-    Shift: GAMEPAD_KEYS.SELECT
+  const controllerStateRef = useRef<Record<JoypadKey, boolean>>({
+    UP: false,
+    DOWN: false,
+    LEFT: false,
+    RIGHT: false,
+    A: false,
+    B: false,
+    START: false,
+    SELECT: false
+  });
+
+  const updateJoypadState = (eventKey: string, pressed: boolean) => {
+    const normalizedKey = eventKey.length === 1 ? eventKey.toLowerCase() : eventKey;
+    const joypadKey = GAMEPAD_KEYS[normalizedKey];
+    if (!joypadKey) {
+      return false;
+    }
+
+    controllerStateRef.current[joypadKey] = pressed;
+
+    // WasmBoy expects the full controller state object rather than individual key codes.
+    WasmBoy.setJoypadState({ ...controllerStateRef.current });
+    return true;
   };
 
   useEffect(() => {
@@ -93,7 +108,7 @@ function GameBoyEmulator() {
           throw new Error(response?.error ?? "ROM data missing");
         }
 
-        const romBuffer = base64ToArrayBuffer(romBase64);
+  const romBuffer = base64ToUint8Array(romBase64);
         
         if (!mounted) return;
 
@@ -133,18 +148,14 @@ function GameBoyEmulator() {
   // Setup keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const gameboyKey = keyMap[e.key];
-      if (gameboyKey !== undefined) {
+      if (updateJoypadState(e.key, true)) {
         e.preventDefault();
-        WasmBoy.setJoypadState(gameboyKey, true);
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      const gameboyKey = keyMap[e.key];
-      if (gameboyKey !== undefined) {
+      if (updateJoypadState(e.key, false)) {
         e.preventDefault();
-        WasmBoy.setJoypadState(gameboyKey, false);
       }
     };
 

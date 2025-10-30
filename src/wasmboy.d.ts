@@ -15,14 +15,14 @@ declare module "wasmboy" {
   }
 
   interface WasmBoyGamepadState {
-    UP: number;
-    DOWN: number;
-    LEFT: number;
-    RIGHT: number;
-    A: number;
-    B: number;
-    START: number;
-    SELECT: number;
+    UP: boolean;
+    DOWN: boolean;
+    LEFT: boolean;
+    RIGHT: boolean;
+    A: boolean;
+    B: boolean;
+    START: boolean;
+    SELECT: boolean;
   }
 
   interface WasmBoyAPI {
@@ -31,8 +31,7 @@ declare module "wasmboy" {
     play(): Promise<void>;
     pause(): Promise<void>;
     reset(): Promise<void>;
-    setJoypadState(key: number, pressed: boolean): void;
-    GAMEPAD_STATE: WasmBoyGamepadState;
+    setJoypadState(state: WasmBoyGamepadState): void;
   }
 
   export const WasmBoy: WasmBoyAPI;
