@@ -41,3 +41,7 @@ declare module "wasmboy" {
 
   export const WasmBoy: WasmBoyAPI;
 }
+
+declare module "wasmboy/dist/wasmboy.wasm.esm.js" {
+  export { WasmBoy, WasmBoyAPI, WasmBoyConfig, WasmBoyGamepadState } from "wasmboy";
+}

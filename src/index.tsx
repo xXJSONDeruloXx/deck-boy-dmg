@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { FaGamepad } from "react-icons/fa";
-import { WasmBoy } from "wasmboy";
+import { WasmBoy } from "wasmboy/dist/wasmboy.wasm.esm.js";
 
 import { definePlugin, callable, toaster } from "@decky/api";
 import { ButtonItem, PanelSection, PanelSectionRow, staticClasses } from "@decky/ui";
@@ -390,7 +390,6 @@ const GameBoyCanvas = ({
             marginTop: "10px",
           }}
         >
-          Controls: Use the on-screen buttons or keyboard (Arrows, Z, X, Enter, Shift)
         </div>
       )}
     </div>

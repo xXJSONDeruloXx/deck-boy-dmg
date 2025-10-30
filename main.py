@@ -13,7 +13,7 @@ class Plugin:
         return left + right
 
     async def get_rom(self) -> dict:
-        rom_path = os.path.join(os.path.dirname(__file__), "tetris.gb")
+        rom_path = os.path.join(os.path.dirname(__file__), "buttontest.gb")
         if not os.path.exists(rom_path):
             decky.logger.error("ROM file not found at %s", rom_path)
             return {"error": "ROM file missing"}
