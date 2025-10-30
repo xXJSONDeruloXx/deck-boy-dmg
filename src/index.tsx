@@ -433,7 +433,6 @@ const GameBoyCanvas = ({
             marginTop: "10px",
           }}
         >
-          Controls: Use the D-pad and buttons below, or keyboard (Arrows, Z, X, Enter, Shift)
         </div>
       )}
     </div>
@@ -451,7 +450,7 @@ const ControlButtons = ({ onPress }: { onPress: (joypadKey: JoypadKey) => void }
   const dpadCellStyle: CSSProperties = { width: 48, height: 48 };
 
   return (
-    <PanelSection title="CONTROLS">
+    <PanelSection title="">
       <PanelSectionRow>
         <div
           style={{
