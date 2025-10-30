@@ -32,6 +32,8 @@ declare module "wasmboy" {
     pause(): Promise<void>;
     reset(): Promise<void>;
     setJoypadState(state: WasmBoyGamepadState): void;
+    enableDefaultJoypad(): void;
+    disableDefaultJoypad(): void;
   }
 
   export const WasmBoy: WasmBoyAPI;

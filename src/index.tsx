@@ -1,165 +1,253 @@
-import {
-  PanelSection,
-  PanelSectionRow,
-  staticClasses
-} from "@decky/ui";
-import {
-  definePlugin,
-  toaster,
-  callable
-} from "@decky/api";
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { FaGamepad } from "react-icons/fa";
 import { WasmBoy } from "wasmboy";
 
-// Status type for the emulator
-type EmulatorStatus = "loading" | "running" | "error";
+import { definePlugin, callable, toaster } from "@decky/api";
+import { ButtonItem, PanelSection, PanelSectionRow, staticClasses } from "@decky/ui";
 
-// WasmBoy key constants (defined as numbers matching WasmBoy's internal values)
+type EmulatorStatus = "loading" | "running" | "error";
 type JoypadKey = "UP" | "DOWN" | "LEFT" | "RIGHT" | "A" | "B" | "START" | "SELECT";
 
-const GAMEPAD_KEYS: Record<string, JoypadKey> = {
-  ArrowUp: "UP",
-  ArrowDown: "DOWN",
-  ArrowLeft: "LEFT",
-  ArrowRight: "RIGHT",
-  z: "A",
-  x: "B",
-  Enter: "START",
-  Shift: "SELECT"
+type RomResponse = { rom?: string; error?: string };
+
+type JoypadState = Record<JoypadKey, boolean>;
+
+type KeyMapping = {
+  readonly label: string;
+  readonly joypadKey: JoypadKey;
 };
 
-function base64ToUint8Array(base64: string) {
+const JOYPAD_KEYS: JoypadKey[] = [
+  "UP",
+  "DOWN",
+  "LEFT",
+  "RIGHT",
+  "A",
+  "B",
+  "START",
+  "SELECT",
+];
+
+const KEYBOARD_TO_JOYPAD: Record<string, JoypadKey> = {
+  ArrowUp: "UP",
+  arrowup: "UP",
+  ArrowDown: "DOWN",
+  arrowdown: "DOWN",
+  ArrowLeft: "LEFT",
+  arrowleft: "LEFT",
+  ArrowRight: "RIGHT",
+  arrowright: "RIGHT",
+  KeyZ: "A",
+  z: "A",
+  Z: "A",
+  KeyX: "B",
+  x: "B",
+  X: "B",
+  Enter: "START",
+  NumpadEnter: "START",
+  Shift: "SELECT",
+  ShiftLeft: "SELECT",
+  ShiftRight: "SELECT",
+};
+
+const CONTROL_MAPPINGS: KeyMapping[] = [
+  { label: "D-Pad Up", joypadKey: "UP" },
+  { label: "D-Pad Down", joypadKey: "DOWN" },
+  { label: "D-Pad Left", joypadKey: "LEFT" },
+  { label: "D-Pad Right", joypadKey: "RIGHT" },
+  { label: "A Button", joypadKey: "A" },
+  { label: "B Button", joypadKey: "B" },
+  { label: "Start", joypadKey: "START" },
+  { label: "Select", joypadKey: "SELECT" },
+];
+
+const getRom = callable<[], RomResponse>("get_rom");
+
+const createInitialJoypadState = (): JoypadState => {
+  const state: Partial<JoypadState> = {};
+  for (const key of JOYPAD_KEYS) {
+    state[key] = false;
+  }
+  return state as JoypadState;
+};
+
+const base64ToUint8Array = (base64: string): Uint8Array => {
   const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i += 1) {
-    bytes[i] = binaryString.charCodeAt(i);
+  const length = binaryString.length;
+  const bytes = new Uint8Array(length);
+  for (let index = 0; index < length; index += 1) {
+    bytes[index] = binaryString.charCodeAt(index);
   }
   return bytes;
-}
+};
 
-const getRom = callable<[], { rom?: string; error?: string }>("get_rom");
+const getJoypadKeyFromEvent = (event: KeyboardEvent): JoypadKey | null => {
+  return (
+    KEYBOARD_TO_JOYPAD[event.code] ??
+    KEYBOARD_TO_JOYPAD[event.key] ??
+    KEYBOARD_TO_JOYPAD[event.key.toLowerCase()] ??
+    null
+  );
+};
 
-function GameBoyEmulator() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const useGameBoyEmulator = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const controllerStateRef = useRef<JoypadState>(createInitialJoypadState());
+  const pendingTimeoutsRef = useRef<number[]>([]);
+  const isReadyRef = useRef(false);
+
   const [status, setStatus] = useState<EmulatorStatus>("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const keyListenersRef = useRef<{
-    handleKeyDown: (e: KeyboardEvent) => void;
-    handleKeyUp: (e: KeyboardEvent) => void;
-  } | null>(null);
 
-  const controllerStateRef = useRef<Record<JoypadKey, boolean>>({
-    UP: false,
-    DOWN: false,
-    LEFT: false,
-    RIGHT: false,
-    A: false,
-    B: false,
-    START: false,
-    SELECT: false
-  });
-
-  const updateJoypadState = (eventKey: string, pressed: boolean) => {
-    const normalizedKey = eventKey.length === 1 ? eventKey.toLowerCase() : eventKey;
-    const joypadKey = GAMEPAD_KEYS[normalizedKey];
-    if (!joypadKey) {
-      return false;
+  const applyJoypadState = useCallback((joypadKey: JoypadKey, pressed: boolean) => {
+    if (!isReadyRef.current) {
+      return;
     }
 
-    controllerStateRef.current[joypadKey] = pressed;
+    const nextState: JoypadState = {
+      ...controllerStateRef.current,
+      [joypadKey]: pressed,
+    };
 
-    // WasmBoy expects the full controller state object rather than individual key codes.
-    WasmBoy.setJoypadState({ ...controllerStateRef.current });
-    return true;
-  };
+    controllerStateRef.current = nextState;
+
+    try {
+      WasmBoy.setJoypadState(nextState);
+    } catch (error) {
+      console.warn("Failed to set joypad state", error);
+    }
+  }, []);
+
+  const triggerVirtualPress = useCallback(
+    (joypadKey: JoypadKey) => {
+      applyJoypadState(joypadKey, true);
+      const timeoutId = window.setTimeout(() => {
+        applyJoypadState(joypadKey, false);
+        pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter((id) => id !== timeoutId);
+      }, 140);
+      pendingTimeoutsRef.current.push(timeoutId);
+    },
+    [applyJoypadState]
+  );
 
   useEffect(() => {
-    let mounted = true;
+    let cancelled = false;
 
-    const initEmulator = async () => {
+    const initializeEmulator = async () => {
+      if (!canvasRef.current) {
+        setStatus("error");
+        setErrorMessage("Canvas element not found");
+        return;
+      }
+
+      setStatus("loading");
+      setErrorMessage("");
+
       try {
-        if (!canvasRef.current) {
-          throw new Error("Canvas element not found");
-        }
-
-        setStatus("loading");
-
-        // Initialize WasmBoy with the canvas
-        await WasmBoy.config({
-          headless: false,
-          isGBC: false,
-          gameboySpeed: 1,
-          frameSkip: 0,
-          audioBatchProcessing: true,
-          audioAccumulateSamples: true,
-          timersBatchProcessing: false,
-          graphicsBatchProcessing: false,
-          disableSmoothScaling: false,
-          updateGraphicsCallback: false,
-          updateAudioCallback: false,
-          saveStateCallback: false,
-        }, canvasRef.current);
+        await WasmBoy.config(
+          {
+            headless: false,
+            isGBC: false,
+            gameboySpeed: 1,
+            frameSkip: 0,
+            audioBatchProcessing: true,
+            audioAccumulateSamples: true,
+            timersBatchProcessing: false,
+            graphicsBatchProcessing: false,
+            disableSmoothScaling: false,
+            updateGraphicsCallback: false,
+            updateAudioCallback: false,
+            saveStateCallback: false,
+          },
+          canvasRef.current
+        );
 
         const response = await getRom();
-        const romBase64 = response?.rom;
-        if (!romBase64) {
+        if (!response?.rom) {
           throw new Error(response?.error ?? "ROM data missing");
         }
 
-  const romBuffer = base64ToUint8Array(romBase64);
-        
-        if (!mounted) return;
+        const romBuffer = base64ToUint8Array(response.rom);
 
-        // Load and play the ROM
+        if (cancelled) {
+          return;
+        }
+
         await WasmBoy.loadROM(romBuffer);
+
+        if (cancelled) {
+          return;
+        }
+
+        WasmBoy.disableDefaultJoypad?.();
+
         await WasmBoy.play();
 
-        if (mounted) {
-          setStatus("running");
-          toaster.toast({
-            title: "Deck Boy DMG",
-            body: "Tetris loaded successfully!"
-          });
+        if (cancelled) {
+          return;
         }
+
+        controllerStateRef.current = createInitialJoypadState();
+        WasmBoy.setJoypadState(controllerStateRef.current);
+        isReadyRef.current = true;
+
+        setStatus("running");
+        toaster.toast({
+          title: "Deck Boy DMG",
+          body: "ROM loaded successfully",
+        });
       } catch (error) {
-        console.error("Failed to initialize WasmBoy:", error);
-        if (mounted) {
+        console.error("Failed to initialize WasmBoy", error);
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : "Unknown error";
           setStatus("error");
-          setErrorMessage(error instanceof Error ? error.message : "Unknown error");
+          setErrorMessage(message);
           toaster.toast({
             title: "Deck Boy DMG Error",
-            body: error instanceof Error ? error.message : "Failed to load ROM"
+            body: message,
           });
         }
       }
     };
 
-    initEmulator();
+    initializeEmulator();
 
     return () => {
-      mounted = false;
-      // Cleanup WasmBoy on unmount
-      WasmBoy.pause().catch(console.error);
+      cancelled = true;
+      isReadyRef.current = false;
+      for (const timeoutId of pendingTimeoutsRef.current) {
+        window.clearTimeout(timeoutId);
+      }
+      pendingTimeoutsRef.current = [];
+      WasmBoy.pause().catch((error) => console.warn("Failed to pause WasmBoy", error));
+      WasmBoy.enableDefaultJoypad?.();
     };
   }, []);
 
-  // Setup keyboard controls
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (updateJoypadState(e.key, true)) {
-        e.preventDefault();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) {
+        return;
       }
+
+      const joypadKey = getJoypadKeyFromEvent(event);
+      if (!joypadKey) {
+        return;
+      }
+
+      event.preventDefault();
+      applyJoypadState(joypadKey, true);
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (updateJoypadState(e.key, false)) {
-        e.preventDefault();
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const joypadKey = getJoypadKeyFromEvent(event);
+      if (!joypadKey) {
+        return;
       }
-    };
 
-    keyListenersRef.current = { handleKeyDown, handleKeyUp };
+      event.preventDefault();
+      applyJoypadState(joypadKey, false);
+    };
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -168,14 +256,31 @@ function GameBoyEmulator() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, []);
+  }, [applyJoypadState]);
 
-  const getStatusText = () => {
+  return {
+    canvasRef,
+    status,
+    errorMessage,
+    triggerVirtualPress,
+  };
+};
+
+const GameBoyCanvas = ({
+  canvasRef,
+  status,
+  errorMessage,
+}: {
+  canvasRef: RefObject<HTMLCanvasElement>;
+  status: EmulatorStatus;
+  errorMessage: string;
+}) => {
+  const getStatusText = (): string => {
     switch (status) {
       case "loading":
-        return "Loading ROM…";
+        return "Loading ROM...";
       case "running":
-        return "Running Tetris";
+        return "Running";
       case "error":
         return `Error: ${errorMessage}`;
       default:
@@ -184,14 +289,16 @@ function GameBoyEmulator() {
   };
 
   return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "20px",
-      gap: "15px"
-    }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px",
+        gap: "15px",
+      }}
+    >
       <canvas
         ref={canvasRef}
         width={160}
@@ -202,50 +309,68 @@ function GameBoyEmulator() {
           imageRendering: "pixelated",
           backgroundColor: "#000",
           maxWidth: "100%",
-          height: "auto"
+          height: "auto",
         }}
       />
-      <div style={{
-        fontSize: "14px",
-        color: status === "error" ? "#ff5555" : "#aaa",
-        textAlign: "center"
-      }}>
+      <div
+        style={{
+          fontSize: "14px",
+          color: status === "error" ? "#ff5555" : "#aaa",
+          textAlign: "center",
+        }}
+      >
         {getStatusText()}
       </div>
       {status === "running" && (
-        <div style={{
-          fontSize: "11px",
-          color: "#666",
-          textAlign: "center",
-          marginTop: "10px"
-        }}>
-          Controls: Arrows (D-pad) • Z (A) • X (B) • Enter (Start) • Shift (Select)
+        <div
+          style={{
+            fontSize: "11px",
+            color: "#666",
+            textAlign: "center",
+            marginTop: "10px",
+          }}
+        >
+          Controls: Use the on-screen buttons or keyboard (Arrows, Z, X, Enter, Shift)
         </div>
       )}
     </div>
   );
-}
+};
 
-function Content() {
-  return (
-    <PanelSection title="Deck Boy DMG">
-      <PanelSectionRow>
-        <GameBoyEmulator />
+const ControlButtons = ({ onPress }: { onPress: (joypadKey: JoypadKey) => void }) => (
+  <PanelSection title="CONTROLS">
+    {CONTROL_MAPPINGS.map(({ joypadKey, label }) => (
+      <PanelSectionRow key={joypadKey}>
+        <ButtonItem layout="below" onClick={() => onPress(joypadKey)}>
+          {label}
+        </ButtonItem>
       </PanelSectionRow>
-    </PanelSection>
+    ))}
+  </PanelSection>
+);
+
+const Content = () => {
+  const { canvasRef, status, errorMessage, triggerVirtualPress } = useGameBoyEmulator();
+
+  return (
+    <>
+      <PanelSection title="GAME BOY EMULATOR">
+        <PanelSectionRow>
+          <GameBoyCanvas canvasRef={canvasRef} status={status} errorMessage={errorMessage} />
+        </PanelSectionRow>
+      </PanelSection>
+
+      <ControlButtons onPress={triggerVirtualPress} />
+    </>
   );
-}
+};
 
-export default definePlugin(() => {
-  console.log("Deck Boy DMG plugin initializing");
-
-  return {
-    name: "Deck Boy DMG",
-    titleView: <div className={staticClasses.Title}>Deck Boy DMG</div>,
-    content: <Content />,
-    icon: <FaGamepad />,
-    onDismount() {
-      console.log("Deck Boy DMG plugin unloading");
-    },
-  };
-});
+export default definePlugin(() => ({
+  name: "Deck Boy DMG",
+  titleView: <div className={staticClasses.Title}>Deck Boy DMG</div>,
+  content: <Content />,
+  icon: <FaGamepad />,
+  onDismount() {
+    console.log("Deck Boy DMG plugin unloading");
+  },
+}));
