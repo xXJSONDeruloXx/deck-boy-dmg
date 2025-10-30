@@ -74,6 +74,33 @@ const getJoypadKeyFromEvent = (event: KeyboardEvent): JoypadKey | null => {
   );
 };
 
+const CONTROL_PAD_STYLES = `
+.deckboy-pad-button {
+  border-radius: 6px;
+  background-color: #2b3137;
+  border: 2px solid #1b1f23;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+  font-weight: 600;
+  color: #f4f7fb;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.deckboy-pad-button--focused {
+  background-color: #f4f7fb;
+  color: #121417;
+  border-color: #f4f7fb;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.28), inset 0 2px 0 rgba(0, 0, 0, 0.06);
+}
+`;
+
 const ControlPadButton = ({
   label,
   onPress,
@@ -87,31 +114,19 @@ const ControlPadButton = ({
   height?: number;
   style?: CSSProperties;
 }) => {
-  const baseStyle: CSSProperties = {
+  const dynamicStyle: CSSProperties = {
     width,
     height,
-  borderRadius: "6px",
-    backgroundColor: "#2b3137",
-    border: "2px solid #1b1f23",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-  fontSize: "9px",
-    fontWeight: 600,
-    color: "#f4f7fb",
-    boxShadow: "inset 0 2px 0 rgba(255, 255, 255, 0.08)",
-    cursor: "pointer",
-    userSelect: "none",
+    ...(style ?? {}),
   };
 
   return (
     <Focusable
-      focusWithinClassName="gpfocuswithin"
+      className="deckboy-pad-button"
+      focusWithinClassName="gpfocuswithin deckboy-pad-button deckboy-pad-button--focused"
       onActivate={onPress}
       onClick={onPress}
-      style={style ? { ...baseStyle, ...style } : baseStyle}
+      style={dynamicStyle}
     >
       {label}
     </Focusable>
@@ -532,6 +547,7 @@ const Content = () => {
 
   return (
     <>
+      <style>{CONTROL_PAD_STYLES}</style>
       <PanelSection title="GAME BOY EMULATOR">
         <PanelSectionRow>
           <GameBoyCanvas canvasRef={canvasRef} status={status} errorMessage={errorMessage} />
