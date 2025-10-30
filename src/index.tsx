@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { FaGamepad } from "react-icons/fa";
 import { WasmBoy } from "wasmboy/dist/wasmboy.wasm.esm.js";
 
 import { definePlugin, callable, toaster } from "@decky/api";
-import { ButtonItem, PanelSection, PanelSectionRow, staticClasses } from "@decky/ui";
+import { Focusable, PanelSection, PanelSectionRow, staticClasses } from "@decky/ui";
 
 type EmulatorStatus = "loading" | "running" | "error";
 type JoypadKey = "UP" | "DOWN" | "LEFT" | "RIGHT" | "A" | "B" | "START" | "SELECT";
@@ -11,11 +11,6 @@ type JoypadKey = "UP" | "DOWN" | "LEFT" | "RIGHT" | "A" | "B" | "START" | "SELEC
 type RomResponse = { rom?: string; error?: string };
 
 type JoypadState = Record<JoypadKey, boolean>;
-
-type KeyMapping = {
-  readonly label: string;
-  readonly joypadKey: JoypadKey;
-};
 
 const JOYPAD_KEYS: JoypadKey[] = [
   "UP",
@@ -50,17 +45,6 @@ const KEYBOARD_TO_JOYPAD: Record<string, JoypadKey> = {
   ShiftRight: "SELECT",
 };
 
-const CONTROL_MAPPINGS: KeyMapping[] = [
-  { label: "D-Pad Up", joypadKey: "UP" },
-  { label: "D-Pad Down", joypadKey: "DOWN" },
-  { label: "D-Pad Left", joypadKey: "LEFT" },
-  { label: "D-Pad Right", joypadKey: "RIGHT" },
-  { label: "A Button", joypadKey: "A" },
-  { label: "B Button", joypadKey: "B" },
-  { label: "Start", joypadKey: "START" },
-  { label: "Select", joypadKey: "SELECT" },
-];
-
 const getRom = callable<[], RomResponse>("get_rom");
 
 const createInitialJoypadState = (): JoypadState => {
@@ -87,6 +71,50 @@ const getJoypadKeyFromEvent = (event: KeyboardEvent): JoypadKey | null => {
     KEYBOARD_TO_JOYPAD[event.key] ??
     KEYBOARD_TO_JOYPAD[event.key.toLowerCase()] ??
     null
+  );
+};
+
+const ControlPadButton = ({
+  label,
+  onPress,
+  width = 48,
+  height = 48,
+  style,
+}: {
+  label: string;
+  onPress: () => void;
+  width?: number;
+  height?: number;
+  style?: CSSProperties;
+}) => {
+  const baseStyle: CSSProperties = {
+    width,
+    height,
+  borderRadius: "6px",
+    backgroundColor: "#2b3137",
+    border: "2px solid #1b1f23",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+  fontSize: "9px",
+    fontWeight: 600,
+    color: "#f4f7fb",
+    boxShadow: "inset 0 2px 0 rgba(255, 255, 255, 0.08)",
+    cursor: "pointer",
+    userSelect: "none",
+  };
+
+  return (
+    <Focusable
+      focusWithinClassName="gpfocuswithin"
+      onActivate={onPress}
+      onClick={onPress}
+      style={style ? { ...baseStyle, ...style } : baseStyle}
+    >
+      {label}
+    </Focusable>
   );
 };
 
@@ -390,23 +418,114 @@ const GameBoyCanvas = ({
             marginTop: "10px",
           }}
         >
+          Controls: Use the D-pad and buttons below, or keyboard (Arrows, Z, X, Enter, Shift)
         </div>
       )}
     </div>
   );
 };
 
-const ControlButtons = ({ onPress }: { onPress: (joypadKey: JoypadKey) => void }) => (
-  <PanelSection title="CONTROLS">
-    {CONTROL_MAPPINGS.map(({ joypadKey, label }) => (
-      <PanelSectionRow key={joypadKey}>
-        <ButtonItem layout="below" onClick={() => onPress(joypadKey)}>
-          {label}
-        </ButtonItem>
+const ControlButtons = ({ onPress }: { onPress: (joypadKey: JoypadKey) => void }) => {
+  const handlePress = useCallback(
+    (joypadKey: JoypadKey) => () => {
+      onPress(joypadKey);
+    },
+    [onPress]
+  );
+
+  const dpadCellStyle: CSSProperties = { width: 48, height: 48 };
+
+  return (
+    <PanelSection title="CONTROLS">
+      <PanelSectionRow>
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            gap: "28px",
+            padding: "14px 0",
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 48px)",
+              gridTemplateRows: "repeat(3, 48px)",
+              gap: "6px",
+              alignItems: "center",
+              justifyItems: "center",
+            }}
+          >
+            <span style={dpadCellStyle} />
+            <ControlPadButton label="↑" onPress={handlePress("UP")} style={{ gridColumn: "2 / 3" }} />
+            <span style={dpadCellStyle} />
+            <ControlPadButton label="←" onPress={handlePress("LEFT")} style={{ gridColumn: "1 / 2", gridRow: "2 / 3" }} />
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                backgroundColor: "#1c2024",
+                boxShadow: "inset 0 2px 0 rgba(255, 255, 255, 0.05)",
+              }}
+            />
+            <ControlPadButton label="→" onPress={handlePress("RIGHT")} style={{ gridColumn: "3 / 4", gridRow: "2 / 3" }} />
+            <span style={dpadCellStyle} />
+            <ControlPadButton label="↓" onPress={handlePress("DOWN")} style={{ gridColumn: "2 / 3", gridRow: "3 / 4" }} />
+            <span style={dpadCellStyle} />
+          </div>
+
+          <div
+            style={{
+              position: "relative",
+              width: 120,
+              height: 120,
+            }}
+          >
+            <ControlPadButton
+              label="A"
+              onPress={handlePress("A")}
+              style={{ position: "absolute", top: 6, right: 0 }}
+            />
+            <ControlPadButton
+              label="B"
+              onPress={handlePress("B")}
+              style={{ position: "absolute", bottom: 6, left: 0 }}
+            />
+          </div>
+        </div>
       </PanelSectionRow>
-    ))}
-  </PanelSection>
-);
+
+      <PanelSectionRow>
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            gap: "14px",
+            paddingBottom: "14px",
+          }}
+        >
+          <ControlPadButton
+            label="START"
+            onPress={handlePress("START")}
+            width={102}
+            height={32}
+            style={{ borderRadius: "16px" }}
+          />
+          <ControlPadButton
+            label="SELECT"
+            onPress={handlePress("SELECT")}
+            width={102}
+            height={32}
+            style={{ borderRadius: "16px" }}
+          />
+        </div>
+      </PanelSectionRow>
+    </PanelSection>
+  );
+};
 
 const Content = () => {
   const { canvasRef, status, errorMessage, triggerVirtualPress } = useGameBoyEmulator();
