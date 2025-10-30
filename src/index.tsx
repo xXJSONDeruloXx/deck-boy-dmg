@@ -99,10 +99,22 @@ const useGameBoyEmulator = () => {
   const [status, setStatus] = useState<EmulatorStatus>("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
 
+  const hasLoggedNotReadyRef = useRef(false);
+  const hasLoggedNotLoadedRef = useRef(false);
+
   const applyJoypadState = useCallback((joypadKey: JoypadKey, pressed: boolean) => {
     if (!isReadyRef.current) {
+      if (!hasLoggedNotReadyRef.current) {
+        console.debug("[DeckBoy] Skipping joypad update; emulator not ready", {
+          joypadKey,
+          pressed,
+        });
+        hasLoggedNotReadyRef.current = true;
+      }
       return;
     }
+
+    hasLoggedNotReadyRef.current = false;
 
     const nextState: JoypadState = {
       ...controllerStateRef.current,
@@ -111,10 +123,34 @@ const useGameBoyEmulator = () => {
 
     controllerStateRef.current = nextState;
 
+    const isCoreLoaded = typeof WasmBoy.isLoadedAndStarted === "function" ? WasmBoy.isLoadedAndStarted() : undefined;
+    if (isCoreLoaded === false) {
+      if (!hasLoggedNotLoadedRef.current) {
+        console.debug("[DeckBoy] Joypad update queued before core finished loading", {
+          joypadKey,
+          pressed,
+        });
+        hasLoggedNotLoadedRef.current = true;
+      }
+    } else {
+      hasLoggedNotLoadedRef.current = false;
+    }
+
     try {
       WasmBoy.setJoypadState(nextState);
+      console.debug("[DeckBoy] Joypad state dispatched", {
+        joypadKey,
+        pressed,
+        isCoreLoaded,
+        state: nextState,
+      });
     } catch (error) {
-      console.warn("Failed to set joypad state", error);
+      console.warn("[DeckBoy] Failed to set joypad state", {
+        error,
+        joypadKey,
+        pressed,
+        isCoreLoaded,
+      });
     }
   }, []);
 

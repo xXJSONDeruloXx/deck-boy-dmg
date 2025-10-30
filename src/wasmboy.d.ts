@@ -34,6 +34,8 @@ declare module "wasmboy" {
     setJoypadState(state: WasmBoyGamepadState): void;
     enableDefaultJoypad(): void;
     disableDefaultJoypad(): void;
+    isLoadedAndStarted(): boolean;
+    isPlaying(): boolean;
   }
 
   export const WasmBoy: WasmBoyAPI;
