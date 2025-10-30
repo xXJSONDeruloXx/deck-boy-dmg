@@ -36,6 +36,7 @@ declare module "wasmboy" {
     disableDefaultJoypad(): void;
     isLoadedAndStarted(): boolean;
     isPlaying(): boolean;
+    _runWasmExport?(exportName: string, args: number[]): Promise<unknown>;
   }
 
   export const WasmBoy: WasmBoyAPI;

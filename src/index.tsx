@@ -101,6 +101,7 @@ const useGameBoyEmulator = () => {
 
   const hasLoggedNotReadyRef = useRef(false);
   const hasLoggedNotLoadedRef = useRef(false);
+  const joypadProbeCountRef = useRef(0);
 
   const applyJoypadState = useCallback((joypadKey: JoypadKey, pressed: boolean) => {
     if (!isReadyRef.current) {
@@ -144,6 +145,29 @@ const useGameBoyEmulator = () => {
         isCoreLoaded,
         state: nextState,
       });
+
+      if (typeof WasmBoy._runWasmExport === "function" && joypadProbeCountRef.current < 10) {
+        const probeId = joypadProbeCountRef.current + 1;
+        joypadProbeCountRef.current = probeId;
+
+        WasmBoy._runWasmExport("getJoypadState", [])
+          .then((value: unknown) => {
+            console.debug("[DeckBoy] Joypad register probe", {
+              joypadKey,
+              pressed,
+              probeId,
+              registerValue: value,
+            });
+          })
+          .catch((probeError: unknown) => {
+            console.debug("[DeckBoy] Joypad register probe failed", {
+              joypadKey,
+              pressed,
+              probeId,
+              probeError,
+            });
+          });
+      }
     } catch (error) {
       console.warn("[DeckBoy] Failed to set joypad state", {
         error,
